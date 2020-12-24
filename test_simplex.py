@@ -2,6 +2,47 @@ import csv
 import numpy as np
 from simplex import *
 
+class TestSimplex(object):
+    def __init__(self, A, b, c, x, z=None):
+        self.A = self._read_csv(A) if type(A) == str else A
+        self.b = self._read_csv(b) if type(b) == str else b
+        self.c = self._read_csv(c) if type(c) == str else c
+        self.x_star = self._read_csv(x) if type(x) == str else x
+
+        self.A = np.array(self.A)
+        self.b = np.array(self.b)
+        self.c = np.array(self.c)
+        self.x_star = np.array(self.x_star)
+
+        self.z_star = z if z else np.sum(self.c * self.x_star)
+
+
+    def test(self, verbose=True, eps=1e-8):
+        solver = SimplexSolver(self.A, self.b, self.c)
+        x, z = solver.solve(verbose=verbose)
+        error = z - self.z_star
+        
+        print('Simplex objective result = ', z)
+        print('Optimal objective = ', self.z_star)
+
+        if error < eps:
+            print('\033[32mTest passed!\033[0m')
+        else:
+            print('\033[31mTest failed!\033[0m (Error = {}) '.format(error))
+
+
+    def _read_csv(self, path):
+        '''
+        Read csv data from given path
+        '''
+        data = []
+        with open(path, 'r')as f:
+            f_csv = csv.reader(f)
+            for row in f_csv:
+                data.append([float(i) for i in row])
+        
+        return np.array(data)
+
 
 def test_0():
     A = [[2,1,1,1,0,0],
@@ -13,10 +54,9 @@ def test_0():
     x_star = [1/5, 0, 8/5, 0, 0, 4]
     z_star = -27/5
 
-    solver = SimplexSolver(A=A, b=b, c=c)
-    x, z = solver.solve()
-
-    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
+    print('*'*10, 'Testcase #0','*'*10)
+    test = TestSimplex(A=A, b=b, c=c, x=x_star, z=z_star)
+    test.test(verbose=False)
 
 
 def test_1():
@@ -29,10 +69,9 @@ def test_1():
     x_star = [5/3, 4/3, 1]
     z_star = 3
 
-    solver = SimplexSolver(A=A, b=b, c=c)
-    x, z = solver.solve()
-
-    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
+    print('*'*10, 'Testcase #1','*'*10)
+    test = TestSimplex(A=A, b=b, c=c, x=x_star, z=z_star)
+    test.test(verbose=False)
 
 
 def test_2():
@@ -45,10 +84,10 @@ def test_2():
     x_star = [0,0,10000]
     z_star = -10000
 
-    solver = SimplexSolver(A=A, b=b, c=c)
-    x, z = solver.solve()
+    print('*'*10, 'Testcase #2','*'*10)
+    test = TestSimplex(A=A, b=b, c=c, x=x_star, z=z_star)
+    test.test(verbose=False)
 
-    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
 
 
 def test_3():
@@ -60,8 +99,9 @@ def test_3():
     x_star = [0,2/5,9/5]
     z_star = 11/5
 
-    solver = SimplexSolver(A=A, b=b, c=c)
-    x, z = solver.solve()
+    print('*'*10, 'Testcase #3','*'*10)
+    test = TestSimplex(A=A, b=b, c=c, x=x_star, z=z_star)
+    test.test(verbose=False)
 
 
 def test_4():
@@ -71,22 +111,23 @@ def test_4():
     b = [0,0,1]
     c = [0,0,0,-3/4,20,-1/2,6]
 
-    x_star = []
-    z_star = []
+    x_star = [3/4,0,0,1,0,1,0]
+    z_star = -5/4
 
-    solver = SimplexSolver(A=A, b=b, c=c)
-    x, z = solver.solve()
+    print('*'*10, 'Testcase #4','*'*10)
+    test = TestSimplex(A=A, b=b, c=c, x=x_star, z=z_star)
+    test.test(verbose=False)
 
 
 def test_5():
-    solver = SimplexSolver(A_path='data/A.csv', b_path='data/b.csv', c_path='data/c.csv')
-    x, z = solver.solve()
+    print('*'*10, 'Testcase #5','*'*10)
+    test = TestSimplex(A='data/A.csv', b='data/b.csv', c='data/c.csv', x='data/x_star.csv')
+    test.test(verbose=False)
 
-    # assert abs(z_star - z) < 1e-5, 'Not optimal solution'
 
-# test_0()
-# test_1()
-# test_2()
-# test_3()
-# test_4()
+test_0()
+test_1()
+test_2()
+test_3()
+test_4()
 test_5()

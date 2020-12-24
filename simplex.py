@@ -1,7 +1,6 @@
 import numpy as np
 from functools import wraps
 import time
-import csv
 
 
 def timer(func):
@@ -12,7 +11,7 @@ def timer(func):
     def _timer(*args, **kwargs):
         start = time.time()
         ret = func(*args, **kwargs)
-        print('Time used: {} seconds'.format(np.round(time.time() - start, 4)))
+        print('Elapsed time: {} seconds'.format(np.round(time.time() - start, 4)))
         return ret
 
     return _timer
@@ -22,26 +21,17 @@ class SimplexSolver(object):
     '''
     Simplex solver for linear programming
     '''
-
-    def __init__(self, A=None, b=None, c=None, A_path=None, b_path=None, c_path=None):
+    def __init__(self, A, b, c):
         '''
         create a simplex solver
         params:
             A: coefficient matrix of x
             b: rhs of equality constraints
             c: cost coefficient
-            A_path: the path of csv file about A
-            b_path: the path of csv file about b
-            c_path: the path of csv file about c
         '''
-        # Input sanity check
-        assert A or A_path, 'Please input A or given the csv path of A'
-        assert b or b_path, 'Please input b or given the csv path of b'
-        assert c or c_path, 'Please input c or given the csv path of c'
-        
-        A = np.array(A) if A else self._read_csv(A_path)
-        b = np.array(b).reshape(-1,1) if b else self._read_csv(b_path)
-        c = np.array(c).reshape(-1,1) if c else self._read_csv(c_path)
+        A = np.array(A)
+        b = np.array(b).reshape(-1,1)
+        c = np.array(c).reshape(-1,1)
 
         self.A = A
         self.b = b 
@@ -59,8 +49,9 @@ class SimplexSolver(object):
 
         np.set_printoptions(precision=3)
 
+
     @timer
-    def solve(self, max_iterations=100):
+    def solve(self, verbose=True, max_iterations=10000):
         '''
         Interface function for simplex method
         params:
@@ -68,17 +59,20 @@ class SimplexSolver(object):
         '''
         
         self.max_iterations = max_iterations
+        self.verbose = verbose
 
-        print('In auxiliary problem:\n')
+        if verbose:
+            print('In auxiliary problem:\n')
 
         tableau = self._initialize()
 
-        print('In primal problem:\n')
-        print('Initial tableau:')
-        self._print_tableau(tableau)
-        print('Initial basis:')
-        self._print_basis()
-        print('')
+        if verbose:
+            print('In primal problem:\n')
+            print('Initial tableau:')
+            self._print_tableau(tableau)
+            print('Initial basis:')
+            self._print_basis()
+            print('')
 
         tableau, x, z = self._solve(tableau)
 
@@ -89,39 +83,50 @@ class SimplexSolver(object):
         '''
         Run simplex method
         '''
-
         # Main procedure of simplex
         is_optimal = False
 
         for iteration in range(self.max_iterations):
+            assert len(self.basis) == tableau.shape[0] - 1
+            assert not np.any(tableau[:-1,-1] < 0)
+
             # Terminate the algorithm if optimal solution is found
             if self._terminate(tableau):
                 auxiliary_basis = self.basis & self.auxiliary_vars
                 if auxiliary_basis:
                     # Let one auxiliary variable leave basis
                     aux = auxiliary_basis.pop()
-                    for q in range(tableau.shape[1]-1):
-                        if q not in self.basis:
-                            for p in range(tableau.shape[0]-1):
-                                if tableau[p,q] != 0:
-                                    break
+                    for p in range(tableau.shape[0]-1):
+                        if tableau[p,aux] == 1:
                             break
-                    self.basis.remove(aux)
-                    self.basis.add(q)
-                    tableau = self._update(tableau, p, q)
+                    if np.all(tableau[p,:tableau.shape[1]-1-len(self.auxiliary_vars)] == 0):
+                        # Remove redundant constraint
+                        tableau = np.vstack((tableau[:p-1,:], tableau[p:,:]))
+                        self.basis.remove(aux)
+                    else:
+                        for q in range(tableau.shape[1]-1-len(self.auxiliary_vars)):
+                            if tableau[p,q] != 0:
+                                break
+                        self.basis.remove(aux)
+                        self.basis.add(q)
 
-                    print('Iteration #{}'.format(iteration+1))
-                    print('pivot at ({},{}) is {}'.format(p+1, q+1, pivot))
-                    print('tableau after pivoting:')
-                    self._print_tableau(tableau)
-                    print('Basis are:')
-                    self._print_basis()
-                    print('')
+                        tableau = self._update(tableau, p, q)
+
+                        if self.verbose:
+                            print('Iteration #{}'.format(iteration+1))
+                            print('pivot at ({},{}) is {}'.format(p+1, q+1, pivot))
+                            print('tableau after pivoting:')
+                            self._print_tableau(tableau)
+                            print('Basis are:')
+                            self._print_basis()
+                            print('')
+
                 else:
                     is_optimal = True
                     break
             else:
                 p,q = self._get_pivot(tableau)
+
                 pivot = tableau[p,q]
                 for j in self.basis:
                     if tableau[p,j] == 1:
@@ -130,26 +135,30 @@ class SimplexSolver(object):
                 self.basis.add(q)
                 tableau = self._update(tableau, p, q)
                 
-                print('Iteration #{}'.format(iteration+1))
-                print('pivot at ({},{}) is {}'.format(p+1, q+1, pivot))
-                print('tableau after pivoting:')
-                self._print_tableau(tableau)
-                print('Basis are:')
-                self._print_basis()
-                print('')
+                if self.verbose:
+                    print('Iteration #{}'.format(iteration+1))
+                    print('pivot at ({},{}) is {}'.format(p+1, q+1, pivot))
+                    print('tableau after pivoting:')
+                    self._print_tableau(tableau)
+                    print('Basis are:')
+                    self._print_basis()
+                    print('')
         
-        print('#'*50)
-        if is_optimal:
-            print('Optimal solution found in {} iterations\n'.format(iteration+1))
-            print('Optimal solution:')
-            x, z = self._get_variables(tableau)
-            self._print_variables(x, z)
-        else:
-            print('Exceed max iterations')
-            print('Current solution:')
-            x, z = self._get_variables(tableau)
-            self._print_variables(x, z)
-        print('#'*50)
+        x, z = self._get_variables(tableau)
+        if self.verbose:
+            if is_optimal:
+                print('#'*50)
+                print('Optimal solution found in {} iterations\n'.format(iteration+1))
+                print('Optimal solution:')
+                self._print_variables(x, z)
+                print('#'*50)
+            else:
+                x, z = self._get_variables(tableau)
+                print('#'*50)
+                print('Exceed max iterations')
+                print('Current solution:')
+                self._print_variables(x, z)
+                print('#'*50)
 
         return tableau, x, z
 
@@ -166,12 +175,6 @@ class SimplexSolver(object):
             if self.c[i] == 0:
                 for j in range(m):
                     if self.A[j,i] == 1 and basis_flag[j] == 0:
-                        self.basis.add(i)
-                        basis_flag[j] = 1
-                        break
-                    if self.A[j,i] == -1 and basis_flag[j] == 0:
-                        self.A[j,:] = -self.A[j,:]
-                        self.b[j] = -self.b[j]
                         self.basis.add(i)
                         basis_flag[j] = 1
                         break
@@ -217,16 +220,20 @@ class SimplexSolver(object):
                 self.auxiliary_vars.add(n+j)
                 j += 1
 
-        
-        print('Initial tableau of auxiliary problem:')
-        self._print_tableau(tableau)
-        print('Initial basis:')
-        self._print_basis()
-        print('')
+        if self.verbose:
+            print('Initial tableau of auxiliary problem:')
+            self._print_tableau(tableau)
+            print('Initial basis:')
+            self._print_basis()
+            print('')
+
 
         tableau, x, z = self._solve(tableau)
         
-        primal_tableau = np.zeros((m+1,n+1))
+        if abs(tableau[-1,-1] - 0) > 1e-5:
+            raise Exception('Primal problem has no feasible solution!')
+
+        primal_tableau = np.zeros((tableau.shape[0],n+1))
         primal_tableau[:m,:n] = tableau[:m,:n]
         primal_tableau[-1,:-1] = self.c.squeeze()
         primal_tableau[:-1,-1] = tableau[:-1,-1]
@@ -236,10 +243,9 @@ class SimplexSolver(object):
             if primal_tableau[-1,i] != 0:
                 primal_tableau[-1] -= primal_tableau[np.argmax(tableau[:-1,i])] * primal_tableau[-1,i]
 
-        assert np.all(tableau[:-1,-1] > 0)
+        assert not np.any(tableau[:-1,-1] < 0)
 
         return primal_tableau
-
 
 
     def _get_variables(self, tableau):
@@ -249,8 +255,7 @@ class SimplexSolver(object):
         x = []
         for i in range(tableau.shape[1]-1):
             if i in self.basis:
-                assert np.sum(tableau[:,i])
-                x.append(tableau[np.argmax(tableau[:,i]),-1])
+                x.append(tableau[np.argmax(tableau[:-1,i]),-1])
             else:
                 x.append(0)
 
@@ -273,6 +278,7 @@ class SimplexSolver(object):
         tableau[p] = tableau[p] / tableau[p,q]
 
         return tableau
+
 
     def _get_pivot(self, tableau):
         '''
@@ -321,19 +327,6 @@ class SimplexSolver(object):
         return np.all(tableau[-1,:-1] >= 0)
 
 
-    def _read_csv(self, path):
-        '''
-        Read csv data from given path
-        '''
-        data = []
-        with open(path, 'r')as f:
-            f_csv = csv.reader(f)
-            for row in f_csv:
-                data.append([float(i) for i in row])
-        
-        return np.array(data)
-
-
     def _print_tableau(self, tableau):
         '''
         Print current tableau
@@ -359,6 +352,6 @@ class SimplexSolver(object):
         for i in self.decision_vars:
             print('x{}  =  {}'.format(i+1, x[i]))
         print('')
-        print('Slack variables:')
+        print('Slack or Artificial variables:')
         for i in set(np.arange(len(x))) - self.decision_vars:
             print('x{}  =  {}'.format(i+1, x[i]))
