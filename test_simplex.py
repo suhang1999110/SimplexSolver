@@ -3,59 +3,90 @@ import numpy as np
 from simplex import *
 
 
+def test_0():
+    A = [[2,1,1,1,0,0],
+         [1,2,3,0,1,0],
+         [2,2,1,0,0,1]]
+    b = [2,5,6]
+    c = [-3,-1,-3,0,0,0]
+    
+    x_star = [1/5, 0, 8/5, 0, 0, 4]
+    z_star = -27/5
+
+    solver = SimplexSolver(A=A, b=b, c=c)
+    x, z = solver.solve()
+
+    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
+
+
 def test_1():
-    A = np.array([[6, 1,-2,-1, 0, 0],
-                  [1, 1, 1, 0, 1, 0],
-                  [6, 4,-2, 0, 0,-1]])
-    b = np.array([[5],[4],[10]])
-    c = np.array([[5],[2],[-4],[0],[0],[0]])
+    A = [[6, 1,-2,-1, 0, 0],
+         [1, 1, 1, 0, 1, 0],
+         [6, 4,-2, 0, 0,-1]]
+    b = [5,4,10]
+    c = [5,2,-4,0,0,0]
 
-    x_star = np.array([[5/3], [4/3], [1]])
-    z_star = np.array([3])
+    x_star = [5/3, 4/3, 1]
+    z_star = 3
 
-    solver = SimplexSolver()
+    solver = SimplexSolver(A=A, b=b, c=c)
+    x, z = solver.solve()
+
+    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
 
 
 def test_2():
-    A = np.array([[1 ,  0,0,1,0,0],
-                  [20,  1,0,0,1,0],
-                  [200,20,1,0,0,1]])
-    b = np.array([[1],[100],[10000]])
-    c = np.array([[-100],[-10],[-1],[0],[0],[0]])
+    A = [[1 ,  0,0,1,0,0],
+         [20,  1,0,0,1,0],
+         [200,20,1,0,0,1]]
+    b = [1,100,10000]
+    c = [-100,-10,-1,0,0,0]
 
-    x_star = np.array([[0],[0],[10000]])
-    z_star = np.array([-10000])
+    x_star = [0,0,10000]
+    z_star = -10000
+
+    solver = SimplexSolver(A=A, b=b, c=c)
+    x, z = solver.solve()
+
+    assert abs(z_star - z) < 1e-5, 'Not optimal solution'
 
 
 def test_3():
-    A = []
-    b = []
-    c = []
+    A = [[2,1,2],
+         [3,3,1]]
+    b = [4,3]
+    c = [4,1,1]
+
+    x_star = [0,2/5,9/5]
+    z_star = 11/5
+
+    solver = SimplexSolver(A=A, b=b, c=c)
+    x, z = solver.solve()
+
+
+def test_4():
+    A = [[1,0,0,1/4,-8,-1,9],
+         [0,1,0,1/2,-12,-1/2,3],
+         [0,0,1,0,0,1,0]]
+    b = [0,0,1]
+    c = [0,0,0,-3/4,20,-1/2,6]
+
     x_star = []
+    z_star = []
 
-    with open('data/A.csv', 'r') as f:
-        f_csv = csv.reader(f)
-        for row in f_csv:
-            A.append([float(data) for data in row])
-    with open('data/b.csv', 'r') as f:
-        f_csv = csv.reader(f)
-        for row in f_csv:
-            b.append([float(data) for data in row])
-    with open('data/c.csv', 'r') as f:
-        f_csv = csv.reader(f)
-        for row in f_csv:
-            c.append([float(data) for data in row])
-    with open('data/x_star.csv', 'r') as f:
-        f_csv = csv.reader(f)
-        for row in f_csv:
-            x_star.append([float(data) for data in row])
-
-    A = np.array(A)
-    b = np.array(b)
-    c = np.array(c)
-    x_star = np.array(x_star)
+    solver = SimplexSolver(A=A, b=b, c=c)
+    x, z = solver.solve()
 
 
-test_1()
+def test_5():
+    solver = SimplexSolver(A_path='data/A.csv', b_path='data/b.csv', c_path='data/c.csv')
+    x, z = solver.solve()
+
+    # assert abs(z_star - z) < 1e-5, 'Not optimal solution'
+
+# test_0()
+# test_1()
 # test_2()
 # test_3()
+# test_4()
+test_5()
