@@ -64,7 +64,7 @@ class SimplexSolver(object):
         if verbose:
             print('In auxiliary problem:\n')
 
-        tableau = self._initialize()
+        tableau, iteration1 = self._initialize()
 
         if verbose:
             print('In primal problem:\n')
@@ -74,9 +74,9 @@ class SimplexSolver(object):
             self._print_basis()
             print('')
 
-        tableau, x, z = self._solve(tableau)
+        tableau, x, z, iteration2 = self._solve(tableau)
 
-        return x, z
+        return x, z, iteration1, iteration2
 
 
     def _solve(self, tableau):
@@ -101,7 +101,7 @@ class SimplexSolver(object):
                             break
                     if np.all(tableau[p,:tableau.shape[1]-1-len(self.auxiliary_vars)] == 0):
                         # Remove redundant constraint
-                        tableau = np.vstack((tableau[:p-1,:], tableau[p:,:]))
+                        tableau = np.vstack((tableau[:p,:], tableau[p+1:,:]))
                         self.basis.remove(aux)
                     else:
                         for q in range(tableau.shape[1]-1-len(self.auxiliary_vars)):
@@ -160,7 +160,7 @@ class SimplexSolver(object):
                 self._print_variables(x, z)
                 print('#'*50)
 
-        return tableau, x, z
+        return tableau, x, z, iteration
 
 
     def _initialize(self):
@@ -189,7 +189,7 @@ class SimplexSolver(object):
             tableau[:-1,-1] = self.b.squeeze()
             tableau[-1,:-1] = self.c.squeeze()
         
-        return tableau
+        return tableau, 0
         
 
     def _phase_one(self, basis_flag):
@@ -228,7 +228,7 @@ class SimplexSolver(object):
             print('')
 
 
-        tableau, x, z = self._solve(tableau)
+        tableau, x, z, iteration = self._solve(tableau)
         
         if abs(tableau[-1,-1] - 0) > 1e-5:
             raise Exception('Primal problem has no feasible solution!')
@@ -245,7 +245,7 @@ class SimplexSolver(object):
 
         assert not np.any(tableau[:-1,-1] < 0)
 
-        return primal_tableau
+        return primal_tableau, iteration
 
 
     def _get_variables(self, tableau):
@@ -352,6 +352,7 @@ class SimplexSolver(object):
         for i in self.decision_vars:
             print('x{}  =  {}'.format(i+1, x[i]))
         print('')
-        print('Slack or Artificial variables:')
-        for i in set(np.arange(len(x))) - self.decision_vars:
-            print('x{}  =  {}'.format(i+1, x[i]))
+        if len(set(np.arange(len(x))) - self.decision_vars) != 0:
+            print('Slack or Artificial variables:')
+            for i in set(np.arange(len(x))) - self.decision_vars:
+                print('x{}  =  {}'.format(i+1, x[i]))
