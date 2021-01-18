@@ -1,5 +1,4 @@
 # Simplex Solver
-This is the final project of SI152 Numerical Optimization
 
 ## Project Description
 
